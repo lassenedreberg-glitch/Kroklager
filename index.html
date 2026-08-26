@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07111f">
+<title>Kroker</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#07111f;color:#eef3f8;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{padding:18px 18px 10px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#07111f;z-index:5}
+h1{font-size:28px;margin:0}.plus{width:44px;height:44px;border-radius:50%;border:0;background:#1769e0;color:#fff;font-size:30px}
+.tabs{display:flex;margin:6px 14px 14px;background:#111d2b;border-radius:12px;overflow:hidden}
+.tabs button{flex:1;padding:12px 6px;background:none;border:0;color:#aeb9c6;font-weight:700;font-size:12px}
+.tabs .on{color:#4c91ff;border-bottom:2px solid #2675ed}
+.wrap{padding:0 14px 90px}.rule{background:#0e1b2a;border:1px solid #20354b;border-radius:12px;padding:12px;margin-bottom:16px;font-size:13px;color:#c8d1dc}
+.rule b{display:block;color:#fff;margin-bottom:4px}
+.section-title{font-size:14px;color:#9da9b7;font-weight:800;margin:16px 8px 7px;text-transform:uppercase}
+.card{background:#101c29;border-radius:12px;overflow:hidden}
+.row{display:grid;grid-template-columns:82px 1fr 78px 22px;gap:8px;align-items:center;padding:12px;border-bottom:1px solid #22303d;min-height:52px}
+.row:last-child{border-bottom:0}.dim{font-weight:800}.len{color:#e8edf3}.qty{text-align:center;background:#1b2836;border-radius:8px;padding:7px 4px;font-weight:700}
+.chev{color:#b8c1cb;font-size:24px}.groupbreak{height:10px;background:#07111f;border-top:1px solid #43515f;border-bottom:1px solid #22303d}
+.bottom{position:fixed;bottom:0;left:0;right:0;background:#0b1623;border-top:1px solid #263646;display:flex;justify-content:space-around;padding:9px 4px calc(9px + env(safe-area-inset-bottom));font-size:11px}
+.bottom span{color:#9ba7b4;text-align:center}.bottom .active{color:#4c91ff}
+.detail{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-end;z-index:20}
+.sheet{width:100%;background:#111d2b;border-radius:18px 18px 0 0;padding:18px 18px calc(22px + env(safe-area-inset-bottom));max-height:82vh;overflow:auto}
+.sheet h2{margin:0 0 14px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.box{background:#0a1521;border:1px solid #26384b;border-radius:10px;padding:10px}.box label{display:block;color:#9eabba;font-size:12px;margin-bottom:5px}
+.box input,.box select{width:100%;background:#111d2b;color:#fff;border:1px solid #33475c;border-radius:8px;padding:9px;font-size:16px}
+.wide{grid-column:1/-1}.actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}.actions button{flex:1;border:0;border-radius:10px;padding:12px;font-weight:700}
+.save{background:#1769e0;color:white}.archivebtn{background:#283747;color:#fff}.danger{background:#5a2025;color:#fff}.restore{background:#175f3d;color:#fff}
+.hidden{display:none}.orderbadge{background:#d9303e;color:#fff;border-radius:99px;padding:2px 6px;font-size:11px}
+.orderlist{background:#101c29;border-radius:12px;padding:12px}.orderitem{padding:10px;border-bottom:1px solid #263646}.orderitem:last-child{border:0}
+.muted{color:#9aa7b5;font-size:12px}.empty{padding:18px;color:#9aa7b5;text-align:center}
+</style>
+</head>
+<body>
+<header><h1>Kroker</h1><button class="plus" onclick="newType()">+</button></header>
+<div class="tabs">
+  <button class="on" onclick="tab('active',this)">AKTIVT LAGER</button>
+  <button onclick="tab('archive',this)">ARKIV</button>
+  <button onclick="tab('orders',this)">BESTILLING <span id="badge"></span></button>
+</div>
+
+<div class="wrap">
+  <div id="active">
+    <div class="rule"><b>Bestillingsregel</b>Når én aktiv type når MIN, foreslås alle aktive typer som ligger under sin MAKS. MAKS = 0 betyr utfasing.</div>
+    <div id="list"></div>
+  </div>
+
+  <div id="archive" class="hidden">
+    <div class="section-title">Arkiverte typer</div>
+    <div id="archivelist" class="card"></div>
+  </div>
+
+  <div id="orders" class="hidden">
+    <div class="section-title">Bestillingsforslag</div>
+    <div id="orderlist" class="orderlist"></div>
+  </div>
+</div>
+
+<div class="bottom">
+  <span class="active">▦<br>Lager</span>
+  <span>▣<br>Arkiv</span>
+  <span>🛒<br>Bestilling</span>
+  <span>◷<br>Aktivitet</span>
+  <span>⚙<br>Innstillinger</span>
+</div>
+
+<div id="detail" class="detail" onclick="if(event.target===this)closeSheet()">
+  <div class="sheet">
+    <h2 id="sheetTitle"></h2>
+    <div class="grid">
+      <div class="box"><label>Totalt</label><strong id="sheetTotal"></strong></div>
+      <div class="box"><label>Varenr.</label><input id="no"></div>
+      <div class="box"><label>Minimum</label><input id="min" type="number" min="0"></div>
+      <div class="box"><label>Maksimum</label><input id="max" type="number" min="0"></div>
+      <div class="box"><label>Garderobe</label><input id="g" type="number" min="0"></div>
+      <div class="box"><label>Lakkboks</label><input id="lb" type="number" min="0"></div>
+      <div class="box wide"><label>Håkon</label><input id="h" type="number" min="0"></div>
+    </div>
+    <div class="actions">
+      <button class="save" onclick="saveDetail()">Lagre</button>
+      <button class="archivebtn" onclick="archiveCurrent()">Arkiver</button>
+    </div>
+  </div>
+</div>
+
+<div id="newtype" class="detail" onclick="if(event.target===this)closeNew()">
+  <div class="sheet">
+    <h2>Legg til ny type</h2>
+    <div class="grid">
+      <div class="box"><label>Tykkelse mm</label><input id="nt" type="number" step="0.5" min="0.5"></div>
+      <div class="box"><label>Lengde mm</label><input id="nl" type="number" min="1"></div>
+      <div class="box"><label>Variant</label><select id="nv"><option>Standard</option><option>90°</option></select></div>
+      <div class="box"><label>Varenr.</label><input id="nno"></div>
+      <div class="box"><label>Minimum</label><input id="nmin" type="number" min="0"></div>
+      <div class="box"><label>Maksimum</label><input id="nmax" type="number" min="0"></div>
+      <div class="box"><label>Garderobe</label><input id="ng" type="number" min="0" value="0"></div>
+      <div class="box"><label>Lakkboks</label><input id="nlb" type="number" min="0" value="0"></div>
+      <div class="box wide"><label>Håkon</label><input id="nh" type="number" min="0" value="0"></div>
+    </div>
+    <div class="actions"><button class="save" onclick="addType()">Legg til</button></div>
+  </div>
+</div>
+
+<script>
+const INITIAL=[{"t": 2, "l": 400, "v": "Standard", "no": "", "g": 0, "lb": 3, "h": 0, "cat": "standard", "min": 1, "max": 5}, {"t": 2, "l": 75, "v": "Standard", "no": "210833", "g": 0, "lb": 4, "h": 0, "cat": "standard", "min": 1, "max": 5}, {"t": 2, "l": 450, "v": "Standard", "no": "", "g": 0, "lb": 4, "h": 0, "cat": "standard", "min": 1, "max": 5}, {"t": 3, "l": 400, "v": "Standard", "no": "210842", "g": 3, "lb": 0, "h": 0, "cat": "standard", "min": 1, "max": 5}, {"t": 3, "l": 75, "v": "Standard", "no": "210836", "g": 4, "lb": 0, "h": 0, "cat": "standard", "min": 1, "max": 5}, {"t": 3, "l": 450, "v": "Standard", "no": "210844", "g": 4, "lb": 0, "h": 0, "cat": "standard", "min": 1, "max": 5}, {"t": 4, "l": 400, "v": "Standard", "no": "213358", "g": 1, "lb": 3, "h": 0, "cat": "standard", "min": 1, "max": 5}, {"t": 4, "l": 75, "v": "Standard", "no": "253779", "g": 2, "lb": 2, "h": 0, "cat": "standard", "min": 1, "max": 5}, {"t": 4, "l": 450, "v": "Standard", "no": "213359", "g": 3, "lb": 0, "h": 0, "cat": "standard", "min": 1, "max": 5}, {"t": 2, "l": 350, "v": "90°", "no": "210855", "g": 0, "lb": 1, "h": 0, "cat": "90", "min": 1, "max": 1}, {"t": 2, "l": 400, "v": "90°", "no": "", "g": 6, "lb": 4, "h": 0, "cat": "90", "min": 1, "max": 1}, {"t": 2, "l": 450, "v": "90°", "no": "", "g": 0, "lb": 4, "h": 0, "cat": "90", "min": 1, "max": 1}, {"t": 3, "l": 150, "v": "90°", "no": "", "g": 0, "lb": 1, "h": 0, "cat": "90", "min": 1, "max": 1}, {"t": 3, "l": 400, "v": "90°", "no": "215889", "g": 2, "lb": 0, "h": 0, "cat": "90", "min": 1, "max": 1}, {"t": 3, "l": 450, "v": "90°", "no": "", "g": 2, "lb": 0, "h": 0, "cat": "90", "min": 1, "max": 1}, {"t": 3, "l": 800, "v": "90°", "no": "", "g": 0, "lb": 1, "h": 0, "cat": "90", "min": 1, "max": 1}, {"t": 4, "l": 400, "v": "90°", "no": "", "g": 0, "lb": 1, "h": 0, "cat": "90", "min": 1, "max": 1}, {"t": 2, "l": 100, "v": "Standard", "no": "", "g": 7, "lb": 1, "h": 0, "cat": "100", "min": null, "max": null}, {"t": 3, "l": 100, "v": "Standard", "no": "210837", "g": 6, "lb": 1, "h": 0, "cat": "100", "min": null, "max": null}, {"t": 4, "l": 100, "v": "Standard", "no": "253780", "g": 5, "lb": 1, "h": 0, "cat": "100", "min": null, "max": null}, {"t": 5, "l": 100, "v": "Standard", "no": "212390", "g": 3, "lb": 0, "h": 0, "cat": "100", "min": null, "max": null}, {"t": 1.5, "l": 400, "v": "Standard", "no": "", "g": 0, "lb": 1, "h": 0, "cat": "other", "min": null, "max": null}, {"t": 1.5, "l": 450, "v": "Standard", "no": "", "g": 0, "lb": 1, "h": 0, "cat": "other", "min": null, "max": null}, {"t": 2, "l": 150, "v": "Standard", "no": "210839", "g": 0, "lb": 2, "h": 0, "cat": "other", "min": null, "max": null}, {"t": 2, "l": 350, "v": "Standard", "no": "215437", "g": 0, "lb": 1, "h": 0, "cat": "other", "min": null, "max": null}, {"t": 2, "l": 500, "v": "Standard", "no": "210845", "g": 0, "lb": 2, "h": 0, "cat": "other", "min": null, "max": null}, {"t": 3, "l": 250, "v": "Standard", "no": "", "g": 1, "lb": 1, "h": 0, "cat": "other", "min": null, "max": null}, {"t": 3, "l": 350, "v": "Standard", "no": "", "g": 3, "lb": 1, "h": 0, "cat": "other", "min": null, "max": null}, {"t": 4, "l": 350, "v": "Standard", "no": "", "g": 0, "lb": 1, "h": 0, "cat": "other", "min": null, "max": null}, {"t": 4, "l": 500, "v": "Standard", "no": "", "g": 0, "lb": 1, "h": 0, "cat": "other", "min": null, "max": null}, {"t": 5, "l": 150, "v": "Standard", "no": "212391", "g": 0, "lb": 2, "h": 0, "cat": "other", "min": null, "max": null}, {"t": 5, "l": 300, "v": "Standard", "no": "210990", "g": 0, "lb": 2, "h": 0, "cat": "other", "min": null, "max": null}, {"t": 5, "l": 400, "v": "Standard", "no": "254697", "g": 4, "lb": 1, "h": 0, "cat": "other", "min": null, "max": null}, {"t": 5, "l": 450, "v": "Standard", "no": "266819", "g": 9, "lb": 0, "h": 0, "cat": "other", "min": null, "max": null}, {"t": 6, "l": 150, "v": "Standard", "no": "264307", "g": 0, "lb": 1, "h": 0, "cat": "other", "min": null, "max": null}];
+let data=JSON.parse(localStorage.getItem('kroker_v3')||'null')||INITIAL;
+let archived=JSON.parse(localStorage.getItem('kroker_archive_v3')||'[]');
+let current=null;
+const total=x=>(+x.g||0)+(+x.lb||0)+(+x.h||0);
+
+function persist(){
+  localStorage.setItem('kroker_v3',JSON.stringify(data));
+  localStorage.setItem('kroker_archive_v3',JSON.stringify(archived));
+  render();
+}
+
+function row(x,i){
+  return `<div class="row" onclick="openItem(${i})">
+    <div class="dim">${String(x.t).replace('.',',')} mm</div>
+    <div class="len">${x.l} mm${x.v==='90°'?' · 90°':''}</div>
+    <div class="qty">${total(x)} ${total(x)===1?'kasse':'kasser'}</div>
+    <div class="chev">›</div>
+  </div>`;
+}
+
+function section(title,arr,grouped=false){
+  if(!arr.length)return'';
+  let s=`<div class="section-title">${title}</div><div class="card">`;
+  let last=null;
+  arr.forEach(x=>{
+    let i=data.indexOf(x);
+    if(grouped && last!==null && x.t!==last) s+=`<div class="groupbreak"></div>`;
+    s+=row(x,i);
+    last=x.t;
+  });
+  return s+'</div>';
+}
+
+function render(){
+  // Flytt 0-beholdning automatisk til arkiv
+  const toArchive=data.filter(x=>total(x)<=0);
+  if(toArchive.length){
+    toArchive.forEach(x=>archived.push({...x,archivedAt:new Date().toISOString()}));
+    data=data.filter(x=>total(x)>0);
+    localStorage.setItem('kroker_v3',JSON.stringify(data));
+    localStorage.setItem('kroker_archive_v3',JSON.stringify(archived));
+  }
+
+  const active=[...data];
+
+  const std=active.filter(x=>x.cat==='standard')
+    .sort((a,b)=>a.t-b.t || [400,75,450].indexOf(a.l)-[400,75,450].indexOf(b.l));
+
+  const deg=active.filter(x=>x.cat==='90')
+    .sort((a,b)=>a.t-b.t || a.l-b.l);
+
+  const hundred=active.filter(x=>x.cat==='100')
+    .sort((a,b)=>a.t-b.t);
+
+  const other=active.filter(x=>x.cat==='other')
+    .sort((a,b)=>a.t-b.t || a.l-b.l);
+
+  document.getElementById('list').innerHTML =
+    section('Standardkroker',std,true)+
+    section('90° kroker',deg,true)+
+    section('100 mm kroker',hundred,true)+
+    section('Øvrige kroker',other,true);
+
+  // Arkiv
+  const al=document.getElementById('archivelist');
+  if(!archived.length){ al.innerHTML='<div class="empty">Arkivet er tomt.</div>'; }
+  else {
+    al.innerHTML=archived.map((x,i)=>`<div class="row" onclick="openArchived(${i})">
+      <div class="dim">${String(x.t).replace('.',',')} mm</div>
+      <div class="len">${x.l} mm${x.v==='90°'?' · 90°':''}</div>
+      <div class="qty">${total(x)} kasser</div><div class="chev">›</div>
+    </div>`).join('');
+  }
+
+  // Bestillingslogikk:
+  // Trigger hvis minst én aktiv type med max>0 og definert min har beholdning <= min.
+  const trigger=active.some(x=>x.max!==0 && x.min!==null && x.min!=='' && x.max!==null && x.max!=='' && total(x)<=+x.min);
+  const suggestions = trigger ? active.filter(x=>x.max!==0 && x.max!==null && x.max!=='' && total(x)<+x.max)
+    .map(x=>({...x,order:+x.max-total(x)})) : [];
+
+  document.getElementById('badge').innerHTML = suggestions.length ? `<span class="orderbadge">${suggestions.length}</span>` : '';
+  const ol=document.getElementById('orderlist');
+  if(!trigger) ol.innerHTML='<div class="empty">Ingen bestillingsrunde er utløst.</div>';
+  else if(!suggestions.length) ol.innerHTML='<div class="empty">Ingen aktive typer mangler opp til MAKS.</div>';
+  else ol.innerHTML=suggestions.map(x=>`<div class="orderitem">
+      <b>${String(x.t).replace('.',',')} mm · ${x.l} mm${x.v==='90°'?' · 90°':''}</b>
+      <div class="muted">På lager: ${total(x)} · Maks: ${x.max} · Bestill: ${x.order}</div>
+    </div>`).join('');
+}
+
+function tab(id,btn){
+  ['active','archive','orders'].forEach(x=>document.getElementById(x).classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+}
+
+function openItem(i){
+  current={type:'active',i};
+  const x=data[i];
+  document.getElementById('sheetTitle').textContent=`${String(x.t).replace('.',',')} mm · ${x.l} mm${x.v==='90°'?' · 90°':''}`;
+  document.getElementById('sheetTotal').textContent=total(x)+' kasser';
+  document.getElementById('no').value=x.no||'';
+  document.getElementById('min').value=(x.min??'');
+  document.getElementById('max').value=(x.max??'');
+  document.getElementById('g').value=x.g||0;
+  document.getElementById('lb').value=x.lb||0;
+  document.getElementById('h').value=x.h||0;
+  document.getElementById('detail').style.display='flex';
+}
+
+function openArchived(i){
+  current={type:'archive',i};
+  const x=archived[i];
+  document.getElementById('sheetTitle').textContent=`ARKIV · ${String(x.t).replace('.',',')} mm · ${x.l} mm${x.v==='90°'?' · 90°':''}`;
+  document.getElementById('sheetTotal').textContent=total(x)+' kasser';
+  document.getElementById('no').value=x.no||'';
+  document.getElementById('min').value=(x.min??'');
+  document.getElementById('max').value=(x.max??'');
+  document.getElementById('g').value=x.g||0;
+  document.getElementById('lb').value=x.lb||0;
+  document.getElementById('h').value=x.h||0;
+  const actions=document.querySelector('#detail .actions');
+  actions.innerHTML='<button class="restore" onclick="restoreCurrent()">Gjenopprett</button><button class="danger" onclick="deleteForever()">Slett permanent</button>';
+  document.getElementById('detail').style.display='flex';
+}
+
+function closeSheet(){
+  document.getElementById('detail').style.display='none';
+  document.querySelector('#detail .actions').innerHTML='<button class="save" onclick="saveDetail()">Lagre</button><button class="archivebtn" onclick="archiveCurrent()">Arkiver</button>';
+  current=null;
+}
+
+function saveDetail(){
+  if(!current || current.type!=='active') return;
+  const x=data[current.i];
+  x.no=document.getElementById('no').value.trim();
+  x.min=document.getElementById('min').value===''?null:+document.getElementById('min').value;
+  x.max=document.getElementById('max').value===''?null:+document.getElementById('max').value;
+  x.g=+document.getElementById('g').value||0;
+  x.lb=+document.getElementById('lb').value||0;
+  x.h=+document.getElementById('h').value||0;
+  closeSheet(); persist();
+}
+
+function archiveCurrent(){
+  if(!current || current.type!=='active') return;
+  archived.push({...data[current.i],archivedAt:new Date().toISOString()});
+  data.splice(current.i,1);
+  closeSheet(); persist();
+}
+
+function restoreCurrent(){
+  if(!current || current.type!=='archive') return;
+  const x={...archived[current.i]};
+  delete x.archivedAt;
+  data.push(x);
+  archived.splice(current.i,1);
+  closeSheet(); persist();
+}
+
+function deleteForever(){
+  if(!current || current.type!=='archive') return;
+  if(confirm('Slette denne typen permanent fra arkivet? Dette kan ikke angres.')){
+    archived.splice(current.i,1);
+    closeSheet(); persist();
+  }
+}
+
+function newType(){document.getElementById('newtype').style.display='flex'}
+function closeNew(){document.getElementById('newtype').style.display='none'}
+
+function addType(){
+  const t=+document.getElementById('nt').value;
+  const l=+document.getElementById('nl').value;
+  const v=document.getElementById('nv').value;
+  if(!t || !l){alert('Fyll inn tykkelse og lengde.');return}
+  const no=document.getElementById('nno').value.trim();
+  const min=document.getElementById('nmin').value===''?null:+document.getElementById('nmin').value;
+  const max=document.getElementById('nmax').value===''?null:+document.getElementById('nmax').value;
+  const g=+document.getElementById('ng').value||0, lb=+document.getElementById('nlb').value||0, h=+document.getElementById('nh').value||0;
+
+  let cat='other';
+  if(v==='90°') cat='90';
+  else if(l===100) cat='100';
+  else if([2,3,4].includes(t) && [75,400,450].includes(l)) cat='standard';
+
+  data.push({t,l,v,no,g,lb,h,cat,min,max});
+  closeNew(); persist();
+}
+
+render();
+</script>
+</body></html>
